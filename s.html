@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgriShield - Crop Health Advisor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+    @media print {
+      body {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      header, #leftPanel, .action-buttons, .no-print, .treatment-tab-nav {
+        display: none !important;
+      }
+      main {
+        display: block !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .lg\:col-span-7 {
+        width: 100% !important;
+      }
+      #dashboard {
+        display: block !important;
+      }
+      .report-hero, .report-section {
+        background-color: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        color: #0f172a !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+        margin-bottom: 1.5rem !important;
+      }
+      .text-slate-100, .text-slate-200, .text-slate-300 {
+        color: #0f172a !important;
+      }
+      .text-slate-400, .text-slate-500 {
+        color: #475569 !important;
+      }
+      .text-emerald-400, .text-emerald-500 {
+        color: #047857 !important;
+      }
+      /* Ensure all treatment tabs display simultaneously in PDF export */
+      .tab-content {
+        display: block !important;
+        margin-bottom: 1rem;
+      }
+      .print-banner {
+        display: flex !important;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #059669;
+        padding-bottom: 12px;
+        margin-bottom: 20px;
+      }
+    }
+
+    .print-banner {
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased">
+
+  <!-- Print Header -->
+  <div class="print-banner">
+    <div>
+      <h1 class="text-xl font-bold text-slate-900">AgriShield Field Advisor Report</h1>
+      <p class="text-xs text-slate-500" id="printTimestamp">Generated on: </p>
+    </div>
+    <div class="text-right">
+      <span class="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded">Verified Diagnosis</span>
+    </div>
+  </div>
+
+  <!-- Top Branding Header -->
+  <header class="border-b border-slate-800/80 bg-slate-950/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      
+      <!-- Brand & One Liner Description -->
+      <div class="text-center sm:text-left">
+        <div class="flex items-center justify-center sm:justify-start gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-inner">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+          </div>
+          <h1 class="text-2xl font-black tracking-tight text-white">AGRISHIELD</h1>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">AI-Powered Crop Disease Diagnostic & Field Treatment Advisor — Instant leaf diagnosis & remedies from photos or live camera.</p>
+      </div>
+
+      <!-- Header API Key Status Button -->
+      <div class="flex items-center gap-2">
+        <button id="apiKeyHeaderBtn" onclick="openApiKeyModal()" class="flex items-center gap-2 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-full border border-emerald-500/30 transition">
+          <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+          <span id="apiKeyStatus">API Key: Active</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Two Main Options Navigation Bar -->
+  <div class="max-w-4xl mx-auto px-4 pt-6 pb-2">
+    <div class="flex items-center p-1.5 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl gap-2">
+      <button id="navTabDiagnose" onclick="switchMainTab('diagnose')" class="flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all bg-emerald-500 text-slate-950 shadow-md">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 011.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
+        <span>Upload / Live Capture</span>
+      </button>
+      <button id="navTabHistory" onclick="switchMainTab('history')" class="flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all text-slate-400 hover:text-slate-200">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span>History</span>
+        <span id="navHistoryBadge" class="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">0</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <main class="max-w-4xl mx-auto px-4 py-4 flex-1 w-full space-y-6">
+
+    <!-- Missing API Key Notice Banner (Hidden when key is active) -->
+    <div id="apiKeyBannerNotice" class="hidden p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 to-amber-600/5 border border-amber-500/30 text-amber-200 text-xs space-y-2">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 font-bold text-amber-300">
+          <span class="text-sm">🔑</span>
+          <span>Gemini API Key Required</span>
+        </div>
+        <button onclick="openApiKeyModal()" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-[11px] transition shadow">
+          Connect Key
+        </button>
+      </div>
+      <p class="text-[11px] text-slate-400 leading-relaxed">
+        To run plant diagnoses, connect your free Gemini API key from Google AI Studio.
+      </p>
+    </div>
+
+    <!-- =========================================================================
+         OPTION 1: UPLOAD / LIVE CAPTURE VIEW
+         ========================================================================= -->
+    <div id="viewDiagnose" class="space-y-6">
+
+      <!-- Diagnose Input Card (Hidden while viewing report) -->
+      <div id="inputCard" class="p-6 sm:p-8 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-6">
+        
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-100">Examine Plant Foliage</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Upload a photo or capture a live image of the crop:</p>
+          </div>
+          <span class="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">Step 1 of 2</span>
+        </div>
+
+        <!-- Capture Method Switcher (Upload vs Live Camera) -->
+        <div class="flex items-center p-1 bg-slate-950/80 rounded-xl border border-slate-800 gap-1">
+          <button id="btnModeUpload" onclick="switchToUploadMode()" class="flex-1 py-2.5 px-3 rounded-lg text-xs font-bold text-slate-950 bg-emerald-400 transition shadow flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+            <span>Upload Photo</span>
+          </button>
+          <button id="btnModeCamera" onclick="openLiveCamera()" class="flex-1 py-2.5 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 011.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
+            <span>Take Live Photo</span>
+          </button>
+        </div>
+
+        <!-- 1. Upload Dropzone Mode -->
+        <div id="uploadDropzone" class="border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-2xl p-8 text-center transition cursor-pointer bg-slate-950/40 hover:bg-slate-950/80 flex flex-col items-center justify-center min-h-[220px] group">
+          <input type="file" id="fileInput" accept="image/*" class="hidden">
+          <div id="uploadPrompt" class="space-y-3">
+            <div class="w-14 h-14 rounded-2xl bg-slate-800/80 group-hover:bg-emerald-500/10 group-hover:text-emerald-400 transition flex items-center justify-center mx-auto text-slate-400 border border-slate-700/50 shadow">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-slate-200 group-hover:text-emerald-400 transition">Click or drag crop photo here</p>
+              <p class="text-xs text-slate-500 mt-1">Supports JPG, PNG, WEBP from your phone or PC</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Live Camera Viewfinder Box -->
+        <div id="cameraBox" class="hidden space-y-4">
+          <div class="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-inner">
+            <video id="cameraVideo" autoplay playsinline muted class="w-full h-64 sm:h-96 object-cover bg-black"></video>
+            
+            <!-- Camera Viewfinder Overlay Grid -->
+            <div class="absolute inset-0 pointer-events-none border border-emerald-500/20 m-4 rounded-xl flex items-center justify-center">
+              <div class="w-12 h-12 border-t-2 border-l-2 border-emerald-400 absolute top-0 left-0 rounded-tl-lg"></div>
+              <div class="w-12 h-12 border-t-2 border-r-2 border-emerald-400 absolute top-0 right-0 rounded-tr-lg"></div>
+              <div class="w-12 h-12 border-b-2 border-l-2 border-emerald-400 absolute bottom-0 left-0 rounded-bl-lg"></div>
+              <div class="w-12 h-12 border-b-2 border-r-2 border-emerald-400 absolute bottom-0 right-0 rounded-br-lg"></div>
+              <p class="text-[11px] text-emerald-400/90 font-medium bg-slate-950/70 px-2.5 py-1 rounded-full border border-emerald-500/20 backdrop-blur">Center leaf or stem here</p>
+            </div>
+          </div>
+
+          <div id="cameraErrorMsg" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs"></div>
+
+          <!-- Camera Controls -->
+          <div class="flex flex-wrap items-center justify-center gap-3 pt-1">
+            <button onclick="snapPhotoFromCamera()" class="py-3 px-6 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs sm:text-sm transition flex items-center gap-2 shadow-lg shadow-emerald-950/30">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 011.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              <span>Capture Photo</span>
+            </button>
+            <button onclick="flipLiveCamera()" class="py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-700">
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+              <span>Flip Camera</span>
+            </button>
+            <button onclick="switchToUploadMode()" class="py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 font-semibold rounded-xl text-xs transition border border-slate-700">
+              Close Camera
+            </button>
+          </div>
+
+          <!-- Native Mobile Camera Fallback -->
+          <input type="file" id="nativeCameraInput" accept="image/*" capture="environment" class="hidden">
+          <div class="text-center pt-1">
+            <button onclick="document.getElementById('nativeCameraInput').click()" class="text-[11px] text-slate-500 hover:text-emerald-400 transition underline underline-offset-2">
+              Or tap here to open your phone's native camera app
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Selected / Captured Photo Preview -->
+        <div id="photoPreviewBox" class="hidden space-y-3 p-4 rounded-2xl bg-slate-950/70 border border-slate-800 text-center">
+          <div class="relative inline-block max-w-sm mx-auto">
+            <img id="selectedPhotoImg" class="max-h-64 rounded-xl object-contain mx-auto shadow-xl border border-slate-700" alt="Ready for diagnosis">
+            <span class="absolute top-2 right-2 bg-emerald-500 text-slate-950 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full shadow">Photo Ready</span>
+          </div>
+          <div class="pt-1">
+            <button onclick="resetChosenPhoto()" class="text-xs text-slate-400 hover:text-slate-200 font-medium px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 transition inline-flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+              <span>Retake / Choose Another</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Language Selector for Indian Languages -->
+        <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1.5">
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg>
+            <span>Diagnosis Report Language / भाषा</span>
+          </label>
+          <select id="languageSelect" class="w-full bg-slate-900 border border-slate-700 text-xs font-semibold text-emerald-400 rounded-xl px-3 py-2.5 focus:outline-none focus:border-emerald-500 cursor-pointer">
+            <option value="English" selected>English (English)</option>
+            <option value="Hindi">हिन्दी (Hindi)</option>
+            <option value="Bengali">বাংলা (Bengali)</option>
+            <option value="Telugu">తెలుగు (Telugu)</option>
+            <option value="Marathi">मराठी (Marathi)</option>
+            <option value="Tamil">தமிழ் (Tamil)</option>
+            <option value="Gujarati">ગુજરાતી (Gujarati)</option>
+            <option value="Kannada">ಕನ್ನಡ (Kannada)</option>
+            <option value="Malayalam">മലയാളം (Malayalam)</option>
+            <option value="Punjabi">ਪੰਜਾਬੀ (Punjabi)</option>
+            <option value="Odia">ଓଡ଼ିଆ (Odia)</option>
+            <option value="Assamese">অসমীয়া (Assamese)</option>
+            <option value="Urdu">اردو (Urdu)</option>
+          </select>
+        </div>
+
+        <!-- Quota Warning Banner -->
+        <div id="quotaErrorBanner" class="hidden p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs space-y-1">
+          <div class="font-bold flex items-center gap-2">
+            <svg class="w-4 h-4 shrink-0 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <span>Rate Limit Notice</span>
+          </div>
+          <p id="quotaErrorMessage" class="leading-relaxed">Free tier quota reached. Please wait for cooldown.</p>
+        </div>
+
+        <!-- Run Analysis Button -->
+        <button id="analyzeBtn" onclick="runAnalysis()" disabled class="w-full py-4 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-slate-950 font-bold rounded-xl text-sm sm:text-base transition duration-200 shadow-xl shadow-emerald-950/30 flex items-center justify-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <span>Run Health Check</span>
+        </button>
+
+        <!-- Photo Tips -->
+        <div class="p-4 rounded-xl bg-slate-950/40 border border-slate-800/60 text-xs text-slate-400 space-y-2">
+          <p class="font-semibold text-slate-300 uppercase tracking-wider text-[10px]">Photo Tips for High Accuracy</p>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+            <div class="flex items-center gap-1.5"><span class="text-emerald-400 font-bold">✓</span> Natural lighting</div>
+            <div class="flex items-center gap-1.5"><span class="text-emerald-400 font-bold">✓</span> Focus on spot/lesion</div>
+            <div class="flex items-center gap-1.5"><span class="text-emerald-400 font-bold">✓</span> Sharp & unblurred</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Loading State -->
+      <div id="loadingState" class="hidden border border-slate-800 bg-slate-900/80 backdrop-blur rounded-2xl p-10 flex flex-col items-center justify-center text-center space-y-6 min-h-[380px]">
+        <div class="relative w-12 h-12 flex items-center justify-center">
+          <div class="absolute inset-0 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+          <svg class="w-5 h-5 text-emerald-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+        </div>
+        <div class="space-y-3 max-w-xs">
+          <h3 class="text-base font-semibold text-slate-100">Analyzing Crop Photo</h3>
+          <div class="space-y-2 text-left bg-slate-950/60 p-4 rounded-xl border border-slate-800/80 text-xs">
+            <div class="flex items-center gap-2 text-emerald-400 font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              Image received & validated
+            </div>
+            <div class="flex items-center gap-2 text-slate-400">
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+              Checking visible symptoms & leaves
+            </div>
+            <div class="flex items-center gap-2 text-slate-500">
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
+              Compiling step-by-step treatment advice
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Integrated Report Dashboard -->
+      <div id="dashboard" class="hidden space-y-8">
+        <!-- Hero Header Area -->
+        <div class="report-hero p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-900/60 border border-slate-800 shadow-2xl relative overflow-hidden space-y-6">
+          <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+            <div>
+              <span id="resCrop" class="text-xs font-extrabold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-md border border-emerald-500/20">CROP SPECIFIED</span>
+            </div>
+            
+            <div class="flex items-center gap-2 action-buttons">
+              <button id="reportBackBtn" onclick="resetScan()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                <span>New Scan</span>
+              </button>
+              <button onclick="downloadPdfReport()" class="px-3.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-xs font-semibold text-emerald-400 border border-emerald-500/30 rounded-lg transition flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1.001 1.001 0 01.707.293l5.414 5.414a1.001 1.001 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span>Download PDF</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-4">
+            <img id="resHeroImg" class="hidden w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border border-slate-700/80 shadow-md shrink-0" alt="Analyzed Plant">
+            <div class="space-y-3 flex-1">
+              <h1 id="resIssue" class="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight leading-snug">---</h1>
+              <div class="flex flex-wrap items-center gap-3 pt-1">
+                <span id="resSeverityBadge" class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">--</span>
+                <div class="flex items-center gap-2 text-xs text-slate-300 font-medium bg-slate-950/50 px-3 py-1 rounded-full border border-slate-800">
+                  <span class="text-slate-500 uppercase tracking-wider text-[10px]">Urgency:</span>
+                  <span id="resUrgency" class="text-slate-200 font-semibold">---</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 1: Visual Symptoms -->
+        <div class="report-section space-y-4">
+          <div class="flex items-center gap-3 pb-2 border-b border-slate-800/80">
+            <span class="text-xs font-bold text-amber-400 tracking-wider">01</span>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">Visual Symptoms Identified</h2>
+            <div class="h-px bg-slate-800/80 flex-1"></div>
+          </div>
+          <div class="pl-2 border-l-2 border-amber-400/80">
+            <div id="resSymptoms" class="space-y-2"></div>
+          </div>
+        </div>
+
+        <!-- Section 2: Immediate Actions Timeline -->
+        <div class="report-section space-y-4">
+          <div class="flex items-center gap-3 pb-2 border-b border-slate-800/80">
+            <span class="text-xs font-bold text-emerald-400 tracking-wider">02</span>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">What To Do Now (Field Steps)</h2>
+            <div class="h-px bg-slate-800/80 flex-1"></div>
+          </div>
+          <div id="resActions" class="space-y-3"></div>
+        </div>
+
+        <!-- Section 3: Integrated Treatment & Control -->
+        <div class="report-section space-y-5">
+          <div class="flex items-center gap-3 pb-2 border-b border-slate-800/80">
+            <span class="text-xs font-bold text-cyan-400 tracking-wider">03</span>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">Treatment & Control Measures</h2>
+            <div class="h-px bg-slate-800/80 flex-1"></div>
+          </div>
+
+          <!-- Tab Navigation -->
+          <div class="flex border-b border-slate-800 gap-2 treatment-tab-nav overflow-x-auto">
+            <button id="tabBtnChemical" onclick="switchTreatmentTab('chemical')" class="px-4 py-2.5 text-xs font-semibold rounded-t-lg transition border-b-2 border-emerald-500 text-emerald-400 bg-emerald-500/10">
+              Chemical Solutions
+            </button>
+            <button id="tabBtnPest" onclick="switchTreatmentTab('pest')" class="px-4 py-2.5 text-xs font-semibold rounded-t-lg transition border-b-2 border-transparent text-slate-400 hover:text-slate-200">
+              Pest Infestations
+            </button>
+            <button id="tabBtnTreatment" onclick="switchTreatmentTab('treatment')" class="px-4 py-2.5 text-xs font-semibold rounded-t-lg transition border-b-2 border-transparent text-slate-400 hover:text-slate-200">
+              General Spray & Care
+            </button>
+          </div>
+
+          <!-- Tab Contents -->
+          <div id="tabChemical" class="tab-content pt-2 space-y-2">
+            <p class="text-[11px] text-slate-500 uppercase tracking-wider font-semibold mb-3">Pesticides, Fungicides & Nutrients</p>
+            <div id="resChemicalSolutions" class="space-y-2"></div>
+          </div>
+
+          <div id="tabPest" class="tab-content hidden pt-2 space-y-2">
+            <p class="text-[11px] text-slate-500 uppercase tracking-wider font-semibold mb-3">Identified Pest Infestations & Measures</p>
+            <div id="resPestInfestations" class="space-y-2"></div>
+          </div>
+
+          <div id="tabTreatment" class="tab-content hidden pt-2 space-y-2">
+            <p class="text-[11px] text-slate-500 uppercase tracking-wider font-semibold mb-3">Recommended Spraying Routine & Treatment</p>
+            <div id="resTreatment" class="space-y-2"></div>
+          </div>
+        </div>
+
+        <!-- Section 4: Prevention Checklist -->
+        <div class="report-section space-y-4">
+          <div class="flex items-center gap-3 pb-2 border-b border-slate-800/80">
+            <span class="text-xs font-bold text-slate-400 tracking-wider">04</span>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">Future Prevention Checklist</h2>
+            <div class="h-px bg-slate-800/80 flex-1"></div>
+          </div>
+          <div id="resPrevention" class="grid grid-cols-1 gap-2.5"></div>
+        </div>
+
+        <!-- Bottom Action Bar -->
+        <div class="pt-4 border-t border-slate-800 flex justify-between items-center action-buttons">
+          <button onclick="resetScan()" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs transition">
+            Scan Another Plant
+          </button>
+          <button onclick="switchMainTab('history')" class="text-xs text-slate-400 hover:text-slate-200 underline">
+            View All Saved Records →
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- =========================================================================
+         OPTION 2: SCAN HISTORY VIEW
+         ========================================================================= -->
+    <div id="viewHistory" class="hidden p-6 sm:p-8 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-6">
+      
+      <!-- History Header -->
+      <div class="flex items-center justify-between border-b border-slate-800/80 pb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-bold text-slate-100">Diagnostic Scan History</h2>
+              <span id="historyCountBadge" class="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">0 records</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">Past plant health checks saved locally in your browser</p>
+          </div>
+        </div>
+        <button onclick="clearHistoryLog()" class="text-xs text-slate-400 hover:text-rose-400 px-3 py-1.5 rounded-lg border border-slate-800 hover:border-rose-500/30 transition flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+          <span>Clear History</span>
+        </button>
+      </div>
+
+      <!-- History Records Feed -->
+      <div id="historyList" class="space-y-3">
+        <!-- Rendered dynamically by JavaScript -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="historyEmpty" class="hidden p-10 rounded-2xl bg-slate-950/40 border border-dashed border-slate-800 text-center space-y-3">
+        <div class="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 mx-auto">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1.001 1.001 0 01.707.293l5.414 5.414a1.001 1.001 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+        </div>
+        <p class="text-xs text-slate-400">No past scan records found. Diagnose a plant on the left to save your first record.</p>
+        <button onclick="restoreSampleHistory()" class="mt-2 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-semibold transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          Load Sample Records
+        </button>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- API Key Modal -->
+  <div id="apiKeyModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+          Connect Google Gemini API Key
+        </h3>
+        <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-slate-200">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-xs text-slate-300 space-y-2">
+        <p class="font-semibold text-slate-200 flex items-center gap-1.5">
+          <span class="text-amber-400">ℹ️</span> How to get a working free Gemini Key:
+        </p>
+        <ol class="list-decimal list-inside space-y-1.5 text-slate-400 pl-1">
+          <li>Visit <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-emerald-400 hover:underline font-semibold">Google AI Studio (Click here)</a></li>
+          <li>Click <b>"Create API key"</b></li>
+          <li><b>Important:</b> Select <b>"Create API key in new project"</b> (this ensures the Generative Language API is automatically enabled)</li>
+          <li>Copy your key (starts with <code class="text-emerald-400 font-mono">AQ.</code> or <code class="text-emerald-400 font-mono">AIzaSy</code>) and paste it below</li>
+        </ol>
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex justify-between">
+          <span>Gemini API Key</span>
+          <span class="text-[10px] text-slate-500 font-normal lowercase">Stored locally in your browser</span>
+        </label>
+        <input type="text" id="modalApiKeyInput" placeholder="AQ.Ab8... or AIzaSy..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
+        <p id="modalKeyValidationMsg" class="hidden text-[11px] text-rose-400 font-medium"></p>
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1">
+          Get Free Key ↗
+        </a>
+        <div class="flex gap-2">
+          <button onclick="closeApiKeyModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 rounded-lg transition">Cancel</button>
+          <button onclick="saveApiKeyModal()" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-xs font-bold text-slate-950 rounded-lg transition">Save Key</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // API CONFIGURATION (Vercel Backend Proxy / Client Fallback)
+    // =========================================================================
+    // In production, your Gemini API key is stored securely in Vercel Environment Variables
+    // (GEMINI_API_KEY) so the browser NEVER sees or leaks your key.
+    const SAVED_API_KEY = "";
+    const GEMINI_MODEL = "gemini-3.6-flash";
+    const HISTORY_STORAGE_KEY = 'agrishield_history';
+
+    // Application state
+    let imageBase64 = null;
+    let imageMimeType = "image/jpeg";
+    let currentReport = null;
+    let cooldownTimer = null;
+    let cameraStream = null;
+    let currentCameraFacing = 'environment';
+    let activeMainTab = 'diagnose';
+    let lastViewBeforeReport = 'diagnose';
+
+    // Core DOM Elements
+    const fileInput = document.getElementById('fileInput');
+    const nativeCameraInput = document.getElementById('nativeCameraInput');
+    const uploadDropzone = document.getElementById('uploadDropzone');
+    const uploadPrompt = document.getElementById('uploadPrompt');
+    const cameraBox = document.getElementById('cameraBox');
+    const cameraVideo = document.getElementById('cameraVideo');
+    const cameraErrorMsg = document.getElementById('cameraErrorMsg');
+    const photoPreviewBox = document.getElementById('photoPreviewBox');
+    const selectedPhotoImg = document.getElementById('selectedPhotoImg');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const quotaErrorBanner = document.getElementById('quotaErrorBanner');
+    const btnModeUpload = document.getElementById('btnModeUpload');
+    const btnModeCamera = document.getElementById('btnModeCamera');
+    const navTabDiagnose = document.getElementById('navTabDiagnose');
+    const navTabHistory = document.getElementById('navTabHistory');
+    const viewDiagnose = document.getElementById('viewDiagnose');
+    const viewHistory = document.getElementById('viewHistory');
+    const inputCard = document.getElementById('inputCard');
+    const dashboard = document.getElementById('dashboard');
+    const loadingState = document.getElementById('loadingState');
+    const navHistoryBadge = document.getElementById('navHistoryBadge');
+    const reportBackBtn = document.getElementById('reportBackBtn');
+
+    // =========================================================================
+    // API KEY MANAGEMENT
+    // =========================================================================
+    function isValidApiKey(key) {
+      if (typeof key !== 'string') return false;
+      const trimmed = key.trim();
+      return trimmed.length >= 25 && (trimmed.startsWith('AQ.') || trimmed.startsWith('AIzaSy') || trimmed.length >= 35);
+    }
+
+    function getApiKey() {
+      try {
+        const stored = localStorage.getItem('agrishield_gemini_api_key');
+        if (stored && stored.trim()) return stored.trim();
+      } catch (e) {}
+      return (SAVED_API_KEY || '').trim();
+    }
+
+    function updateApiKeyStatus() {
+      const key = getApiKey();
+      const statusEl = document.getElementById('apiKeyStatus');
+      const headerBtn = document.getElementById('apiKeyHeaderBtn');
+      const banner = document.getElementById('apiKeyBannerNotice');
+      
+      const isHosted = window.location.protocol.startsWith('http');
+
+      if (isHosted) {
+        if (statusEl) statusEl.textContent = isValidApiKey(key) ? "Custom Key: Active" : "Vercel Secured";
+        if (headerBtn) headerBtn.className = "flex items-center gap-2 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-full border border-emerald-500/30 transition";
+        if (banner) banner.classList.add('hidden');
+      } else {
+        if (isValidApiKey(key)) {
+          if (statusEl) statusEl.textContent = "API Key: Active";
+          if (headerBtn) headerBtn.className = "flex items-center gap-2 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-full border border-emerald-500/30 transition";
+          if (banner) banner.classList.add('hidden');
+        } else {
+          if (statusEl) statusEl.textContent = "Connect API Key";
+          if (headerBtn) headerBtn.className = "flex items-center gap-2 text-xs font-medium text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 rounded-full border border-amber-500/30 transition animate-pulse";
+          if (banner) banner.classList.remove('hidden');
+        }
+      }
+    }
+
+    function openApiKeyModal() {
+      const currentKey = getApiKey();
+      document.getElementById('modalApiKeyInput').value = currentKey;
+      const validationMsg = document.getElementById('modalKeyValidationMsg');
+      validationMsg.classList.add('hidden');
+      document.getElementById('apiKeyModal').classList.remove('hidden');
+      document.getElementById('apiKeyModal').classList.add('flex');
+    }
+
+    function closeApiKeyModal() {
+      document.getElementById('apiKeyModal').classList.add('hidden');
+      document.getElementById('apiKeyModal').classList.remove('flex');
+    }
+
+    function saveApiKeyModal() {
+      const input = document.getElementById('modalApiKeyInput');
+      const val = input.value.trim();
+      
+      try {
+        if (!val) {
+          localStorage.removeItem('agrishield_gemini_api_key');
+        } else {
+          localStorage.setItem('agrishield_gemini_api_key', val);
+        }
+      } catch (e) {
+        console.warn("Storage warning:", e);
+      }
+
+      closeApiKeyModal();
+      updateApiKeyStatus();
+    }
+
+    // =========================================================================
+    // MAIN TWO-OPTION NAVIGATION (Upload / Live Capture VS History)
+    // =========================================================================
+    function switchMainTab(tab) {
+      if (tab === 'diagnose') {
+        activeMainTab = 'diagnose';
+        navTabDiagnose.className = "flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all bg-emerald-500 text-slate-950 shadow-md";
+        navTabHistory.className = "flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all text-slate-400 hover:text-slate-200";
+        viewDiagnose.classList.remove('hidden');
+        viewHistory.classList.add('hidden');
+      } else if (tab === 'history') {
+        stopLiveCamera();
+        activeMainTab = 'history';
+        navTabHistory.className = "flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all bg-emerald-500 text-slate-950 shadow-md";
+        navTabDiagnose.className = "flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all text-slate-400 hover:text-slate-200";
+        viewDiagnose.classList.add('hidden');
+        viewHistory.classList.remove('hidden');
+        renderHistoryView();
+      }
+    }
+
+    // =========================================================================
+    // CAMERA & PHOTO HANDLING (Upload Mode & Live Camera)
+    // =========================================================================
+    function switchToUploadMode() {
+      stopLiveCamera();
+      
+      // Update switcher buttons
+      btnModeUpload.className = "flex-1 py-2.5 px-3 rounded-lg text-xs font-bold text-slate-950 bg-emerald-400 transition shadow flex items-center justify-center gap-1.5";
+      btnModeCamera.className = "flex-1 py-2.5 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-1.5";
+
+      cameraBox.classList.add('hidden');
+      if (imageBase64) {
+        photoPreviewBox.classList.remove('hidden');
+        uploadDropzone.classList.add('hidden');
+      } else {
+        photoPreviewBox.classList.add('hidden');
+        uploadDropzone.classList.remove('hidden');
+      }
+    }
+
+    async function openLiveCamera() {
+      // Update switcher buttons
+      btnModeCamera.className = "flex-1 py-2.5 px-3 rounded-lg text-xs font-bold text-slate-950 bg-emerald-400 transition shadow flex items-center justify-center gap-1.5";
+      btnModeUpload.className = "flex-1 py-2.5 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-1.5";
+
+      uploadDropzone.classList.add('hidden');
+      photoPreviewBox.classList.add('hidden');
+      cameraBox.classList.remove('hidden');
+      cameraErrorMsg.classList.add('hidden');
+
+      stopLiveCamera();
+
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Live camera is not supported on this browser or connection. Tap below to use your phone's native camera.");
+        }
+
+        const constraints = {
+          video: {
+            facingMode: currentCameraFacing,
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        };
+
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        cameraVideo.srcObject = cameraStream;
+        await cameraVideo.play();
+      } catch (err) {
+        console.warn("Camera access failed:", err);
+        cameraErrorMsg.textContent = err.name === 'NotAllowedError'
+          ? "Camera permission denied. Please allow camera permissions in your browser, or tap below to use your native phone camera."
+          : (err.message || "Could not access camera. Tap below to use your native phone camera.");
+        cameraErrorMsg.classList.remove('hidden');
+      }
+    }
+
+    function stopLiveCamera() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+      }
+      if (cameraVideo) {
+        cameraVideo.srcObject = null;
+      }
+    }
+
+    async function flipLiveCamera() {
+      currentCameraFacing = (currentCameraFacing === 'environment') ? 'user' : 'environment';
+      await openLiveCamera();
+    }
+
+    function snapPhotoFromCamera() {
+      if (!cameraVideo || !cameraVideo.videoWidth) {
+        alert("Camera stream is not ready. Please make sure camera is permitted and running.");
+        return;
+      }
+
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = cameraVideo.videoWidth;
+        canvas.height = cameraVideo.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
+
+        const dataUri = canvas.toDataURL('image/jpeg', 0.92);
+        imageMimeType = "image/jpeg";
+        imageBase64 = dataUri.split(',')[1];
+
+        stopLiveCamera();
+        displaySelectedPhoto(dataUri);
+      } catch (e) {
+        console.error("Snapshot error:", e);
+        alert("Failed to capture snapshot from camera. Please try uploading or using native camera.");
+      }
+    }
+
+    function displaySelectedPhoto(dataUri) {
+      cameraBox.classList.add('hidden');
+      uploadDropzone.classList.add('hidden');
+      selectedPhotoImg.src = dataUri;
+      photoPreviewBox.classList.remove('hidden');
+      if (!cooldownTimer) analyzeBtn.disabled = false;
+    }
+
+    function resetChosenPhoto() {
+      fileInput.value = '';
+      if (nativeCameraInput) nativeCameraInput.value = '';
+      imageBase64 = null;
+      imageMimeType = "image/jpeg";
+      selectedPhotoImg.src = '';
+      photoPreviewBox.classList.add('hidden');
+      analyzeBtn.disabled = true;
+      switchToUploadMode();
+    }
+
+    function handleImage(file) {
+      if (!file || !file.type.startsWith('image/')) {
+        alert('Please select an image file (JPG, PNG, WEBP).');
+        return;
+      }
+      imageMimeType = file.type || 'image/jpeg';
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        imageBase64 = e.target.result.split(',')[1];
+        displaySelectedPhoto(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Event Listeners for File Inputs & Drag-and-Drop
+    if (uploadDropzone) {
+      uploadDropzone.addEventListener('click', () => fileInput.click());
+      uploadDropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadDropzone.classList.add('border-emerald-500');
+      });
+      uploadDropzone.addEventListener('dragleave', () => {
+        uploadDropzone.classList.remove('border-emerald-500');
+      });
+      uploadDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadDropzone.classList.remove('border-emerald-500');
+        if (e.dataTransfer.files.length) handleImage(e.dataTransfer.files[0]);
+      });
+    }
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) handleImage(file);
+    });
+
+    if (nativeCameraInput) {
+      nativeCameraInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) handleImage(file);
+      });
+    }
+
+    // =========================================================================
+    // RESET & RETRY COOLDOWN
+    // =========================================================================
+    function resetScan() {
+      stopLiveCamera();
+      loadingState.classList.add('hidden');
+      dashboard.classList.add('hidden');
+      quotaErrorBanner.classList.add('hidden');
+
+      if (lastViewBeforeReport === 'history') {
+        switchMainTab('history');
+      } else {
+        switchMainTab('diagnose');
+        inputCard.classList.remove('hidden');
+        resetChosenPhoto();
+      }
+    }
+
+    function startCooldown(seconds) {
+      let remaining = Math.ceil(seconds);
+      analyzeBtn.disabled = true;
+      quotaErrorBanner.classList.remove('hidden');
+      
+      clearInterval(cooldownTimer);
+      cooldownTimer = setInterval(() => {
+        analyzeBtn.textContent = `Retry in ${remaining}s`;
+        const msgEl = document.getElementById('quotaErrorMessage');
+        if (msgEl) msgEl.textContent = `Gemini API rate limit reached. Auto-unlocking in ${remaining} seconds.`;
+        remaining--;
+
+        if (remaining < 0) {
+          clearInterval(cooldownTimer);
+          cooldownTimer = null;
+          analyzeBtn.textContent = 'Run Health Check';
+          quotaErrorBanner.classList.add('hidden');
+          if (imageBase64) analyzeBtn.disabled = false;
+        }
+      }, 1000);
+    }
+
+    // =========================================================================
+    // AI DIAGNOSIS ENGINE (gemini-3.6-flash)
+    // =========================================================================
+    async function runAnalysis() {
+      if (!imageBase64) {
+        alert("Please select or capture a crop leaf photo first.");
+        return;
+      }
+
+      lastViewBeforeReport = 'diagnose';
+      analyzeBtn.disabled = true;
+      quotaErrorBanner.classList.add('hidden');
+      inputCard.classList.add('hidden');
+      dashboard.classList.add('hidden');
+      loadingState.classList.remove('hidden');
+
+      const selectedLanguage = document.getElementById('languageSelect')?.value || 'English';
+      localStorage.setItem('agrishield_language', selectedLanguage);
+
+      const customApiKey = getApiKey();
+
+      try {
+        let report = null;
+
+        // 1. First priority: Vercel Backend Proxy (/api/analyze) when hosted over HTTP/HTTPS
+        if (window.location.protocol.startsWith('http')) {
+          try {
+            const reqHeaders = { 'Content-Type': 'application/json' };
+            if (customApiKey) reqHeaders['x-gemini-key'] = customApiKey;
+
+            const proxyRes = await fetch('/api/analyze', {
+              method: 'POST',
+              headers: reqHeaders,
+              body: JSON.stringify({
+                imageBase64,
+                imageMimeType,
+                language: selectedLanguage
+              })
+            });
+
+            if (proxyRes.ok) {
+              report = await proxyRes.json();
+            } else if (proxyRes.status === 429) {
+              const errData = await proxyRes.json().catch(() => ({}));
+              let waitSeconds = 30;
+              const match = (errData.error?.message || '').match(/retry in ([0-9.]+)s/i);
+              if (match) waitSeconds = parseFloat(match[1]);
+              startCooldown(waitSeconds);
+              throw new Error(`Rate limit reached. Auto-retry enabled in ${Math.ceil(waitSeconds)}s.`);
+            } else if (proxyRes.status !== 404) {
+              const errData = await proxyRes.json().catch(() => ({}));
+              throw new Error(errData.error?.message || `Server Proxy Error (Status ${proxyRes.status})`);
+            }
+          } catch (proxyErr) {
+            // Rethrow explicit rate limit or server errors
+            if (proxyErr.message && (proxyErr.message.includes('Rate limit') || proxyErr.message.includes('Server Proxy') || proxyErr.message.includes('GEMINI_API_KEY'))) {
+              throw proxyErr;
+            }
+            // If 404 or connection error (e.g. running static without backend), fall through to direct call
+          }
+        }
+
+        // 2. Direct client fallback for local offline file:// or unhosted environments
+        if (!report) {
+          if (!isValidApiKey(customApiKey)) {
+            openApiKeyModal();
+            const validationMsg = document.getElementById('modalKeyValidationMsg');
+            validationMsg.textContent = "To diagnose crops locally, enter your Gemini API key (or deploy to Vercel).";
+            validationMsg.classList.remove('hidden');
+            throw new Error("No Gemini API key configured. On Vercel, set GEMINI_API_KEY in Project Settings; locally, connect your key in the modal.");
+          }
+
+          const systemPrompt = `You are an expert practical agricultural field extension officer providing guidance directly to a farmer.
+Examine the plant/crop photo carefully.
+
+CRITICAL LANGUAGE REQUIREMENT:
+You MUST generate the entire report and all diagnosis content strictly in ${selectedLanguage}.
+If ${selectedLanguage} is an Indian language (e.g. Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Punjabi, Odia, Assamese, Urdu), write all explanations, symptoms, immediate field steps, pest measures, chemical solutions with practical dosages (ml or grams per liter), treatments, and prevention tips in ${selectedLanguage} using everyday vocabulary that local farmers easily understand.
+
+Return a strict JSON object without any Markdown text wrapper or code fences outside the JSON block.
+Structure response in valid JSON matching this exact layout:
+{
+  "cropName": "Name of crop in ${selectedLanguage}",
+  "issueName": "Name of disease/pest/deficiency in ${selectedLanguage}",
+  "severity": "Healthy | Low | Moderate | Severe (translated into ${selectedLanguage})",
+  "urgency": "e.g. Treat within 24 hours / Normal routine care (in ${selectedLanguage})",
+  "symptoms": ["Symptom point 1 in ${selectedLanguage}", "Symptom point 2 in ${selectedLanguage}"],
+  "immediateActions": ["Action point 1 in ${selectedLanguage}", "Action point 2 in ${selectedLanguage}"],
+  "pestInfestations": ["Specific pest identified and control measure 1 in ${selectedLanguage}", "Pest measure 2 in ${selectedLanguage}"],
+  "chemicalSolutions": ["Specific chemical solution/fungicide/pesticide name and dilution in ${selectedLanguage}", "Chemical solution 2 in ${selectedLanguage}"],
+  "treatment": ["Recommended spray/treatment 1 in ${selectedLanguage}", "Recommended spray/treatment 2 in ${selectedLanguage}"],
+  "prevention": ["Prevention tip 1 in ${selectedLanguage}", "Prevention tip 2 in ${selectedLanguage}"]
+}`;
+
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(customApiKey)}`;
+          const directRes = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': customApiKey
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: systemPrompt },
+                  { inline_data: { mime_type: imageMimeType, data: imageBase64 } }
+                ]
+              }],
+              generationConfig: {
+                response_mime_type: "application/json"
+              }
+            })
+          });
+
+          const data = await directRes.json();
+          if (!directRes.ok) {
+            const errMsg = data.error?.message || '';
+            if (directRes.status === 401 || (directRes.status === 400 && (errMsg.includes('credential') || errMsg.includes('API key') || errMsg.includes('key') || errMsg.includes('invalid') || errMsg.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED')))) {
+              openApiKeyModal();
+              const validationMsg = document.getElementById('modalKeyValidationMsg');
+              validationMsg.innerHTML = "Google rejected this key. <b>Fix:</b> In <a href='https://aistudio.google.com/app/apikey' target='_blank' class='underline text-emerald-400'>Google AI Studio</a>, click <i>'Create API key'</i> and select <b>'Create API key in new project'</b>.";
+              validationMsg.classList.remove('hidden');
+              throw new Error("Authentication failed with Gemini API.");
+            }
+
+            if (directRes.status === 429 || errMsg.includes('quota') || errMsg.includes('exceeded')) {
+              let waitSeconds = 30;
+              const match = errMsg.match(/retry in ([0-9.]+)s/i);
+              if (match) waitSeconds = parseFloat(match[1]);
+              startCooldown(waitSeconds);
+              throw new Error(`Rate limit reached. Auto-retry enabled in ${Math.ceil(waitSeconds)}s.`);
+            }
+            throw new Error(errMsg || `API Request failed (Status ${directRes.status})`);
+          }
+
+          let resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (!resultText) {
+            throw new Error("No diagnosis received from Gemini model.");
+          }
+
+          resultText = resultText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+          report = JSON.parse(resultText);
+        }
+
+        currentReport = report;
+
+        // Set plant photo in hero report
+        if (imageBase64) {
+          const heroImg = document.getElementById('resHeroImg');
+          heroImg.src = `data:${imageMimeType};base64,${imageBase64}`;
+          heroImg.classList.remove('hidden');
+        } else {
+          document.getElementById('resHeroImg').classList.add('hidden');
+        }
+
+        renderDashboard(report);
+        analyzeBtn.disabled = false;
+
+        // Update report back button text
+        if (reportBackBtn) {
+          reportBackBtn.innerHTML = `
+            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            <span>New Scan</span>
+          `;
+        }
+
+        // Save diagnostic inspection into persistent field history
+        saveHistoryRecord(report, imageBase64, imageMimeType, selectedLanguage);
+
+      } catch (err) {
+        loadingState.classList.add('hidden');
+        inputCard.classList.remove('hidden');
+        analyzeBtn.disabled = false;
+        if (!cooldownTimer) {
+          alert('Diagnosis Notice: ' + err.message);
+        }
+      }
+    }
+
+    function renderDashboard(data) {
+      document.getElementById('resCrop').textContent = (data.cropName || 'Crop Unspecified').toUpperCase();
+      document.getElementById('resIssue').textContent = data.issueName || 'No specific issue detected';
+      document.getElementById('resUrgency').textContent = data.urgency || 'Normal routine care';
+
+      const badge = document.getElementById('resSeverityBadge');
+      const sev = (data.severity || 'Low').toLowerCase();
+      badge.textContent = `Severity: ${data.severity || 'Low'}`;
+
+      if (sev.includes('severe') || sev.includes('high') || sev.includes('गंभीर') || sev.includes('तीव्र')) {
+        badge.className = "px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30";
+      } else if (sev.includes('mod') || sev.includes('medium') || sev.includes('मध्यम')) {
+        badge.className = "px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/30";
+      } else {
+        badge.className = "px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30";
+      }
+
+      populateList('resSymptoms', data.symptoms, 'symptoms');
+      populateList('resActions', data.immediateActions, 'numbered');
+      populateList('resChemicalSolutions', data.chemicalSolutions, 'standard');
+      populateList('resPestInfestations', data.pestInfestations, 'standard');
+      populateList('resTreatment', data.treatment, 'standard');
+      populateList('resPrevention', data.prevention, 'checklist');
+
+      switchTreatmentTab('chemical');
+
+      loadingState.classList.add('hidden');
+      dashboard.classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function populateList(elementId, items, formatStyle = 'standard') {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+      el.innerHTML = '';
+      if (!items || items.length === 0) {
+        el.innerHTML = '<div class="text-slate-500 text-xs italic py-1">No specific details available.</div>';
+        return;
+      }
+
+      items.forEach((item, index) => {
+        const div = document.createElement('div');
+        
+        if (formatStyle === 'numbered') {
+          div.className = 'flex items-start gap-4 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700/80 transition';
+          div.innerHTML = `
+            <div class="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+              0${index + 1}
+            </div>
+            <p class="text-xs sm:text-sm text-slate-200 leading-relaxed font-medium pt-0.5">${item}</p>
+          `;
+        } else if (formatStyle === 'checklist') {
+          div.className = 'flex items-start gap-3 p-3 rounded-xl bg-slate-900/40 border border-slate-800/60 text-xs sm:text-sm text-slate-300';
+          div.innerHTML = `
+            <div class="w-5 h-5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <span class="leading-relaxed">${item}</span>
+          `;
+        } else if (formatStyle === 'symptoms') {
+          div.className = 'flex items-start gap-2.5 text-xs sm:text-sm text-slate-300 py-1';
+          div.innerHTML = `
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 mt-2"></span>
+            <span class="leading-relaxed">${item}</span>
+          `;
+        } else {
+          div.className = 'flex items-start gap-2.5 text-xs sm:text-sm text-slate-300 py-1.5 border-b border-slate-800/40 last:border-0';
+          div.innerHTML = `
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0 mt-2"></span>
+            <span class="leading-relaxed">${item}</span>
+          `;
+        }
+        
+        el.appendChild(div);
+      });
+    }
+
+    function switchTreatmentTab(tabName) {
+      const tabs = {
+        chemical: { btn: 'tabBtnChemical', content: 'tabChemical' },
+        pest: { btn: 'tabBtnPest', content: 'tabPest' },
+        treatment: { btn: 'tabBtnTreatment', content: 'tabTreatment' }
+      };
+
+      Object.keys(tabs).forEach(key => {
+        const btn = document.getElementById(tabs[key].btn);
+        const content = document.getElementById(tabs[key].content);
+        if (!btn || !content) return;
+        
+        if (key === tabName) {
+          btn.className = "px-4 py-2.5 text-xs font-semibold rounded-t-lg transition border-b-2 border-emerald-500 text-emerald-400 bg-emerald-500/10";
+          content.classList.remove('hidden');
+        } else {
+          btn.className = "px-4 py-2.5 text-xs font-semibold rounded-t-lg transition border-b-2 border-transparent text-slate-400 hover:text-slate-200";
+          content.classList.add('hidden');
+        }
+      });
+    }
+
+    function downloadPdfReport() {
+      if (!currentReport) return;
+
+      const tsEl = document.getElementById('printTimestamp');
+      if (tsEl) tsEl.textContent = `Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`;
+      
+      const originalTitle = document.title;
+      const cropNameClean = (currentReport.cropName || 'Crop').replace(/[^a-zA-Z0-9]/g, '_');
+      document.title = `AgriShield_Report_${cropNameClean}`;
+
+      window.print();
+      document.title = originalTitle;
+    }
+
+    // =========================================================================
+    // FIELD OPERATIONS & DIAGNOSTIC HISTORY LOG
+    // =========================================================================
+    const WHEAT_RUST_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><rect width='120' height='120' rx='16' fill='%230f172a'/><path d='M35 105 C30 60, 50 30, 90 15 C90 55, 75 85, 35 105 Z' fill='%2315803d'/><path d='M40 95 C55 70, 70 45, 88 20' stroke='%2386efac' stroke-width='2' fill='none'/><circle cx='58' cy='58' r='4' fill='%23eab308'/><circle cx='64' cy='50' r='3.5' fill='%23ca8a04'/><circle cx='72' cy='40' r='3.5' fill='%23ea580c'/><circle cx='52' cy='68' r='3' fill='%23ca8a04'/><circle cx='46' cy='78' r='3.5' fill='%23eab308'/></svg>";
+    const TOMATO_BLIGHT_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><rect width='120' height='120' rx='16' fill='%230f172a'/><path d='M30 90 C25 45, 60 25, 95 30 C90 75, 65 95, 30 90 Z' fill='%23166534'/><path d='M34 86 C55 65, 72 52, 92 32' stroke='%234ade80' stroke-width='2' fill='none'/><circle cx='58' cy='56' r='10' fill='%2378350f'/><circle cx='58' cy='56' r='7' fill='%23451a03'/><circle cx='58' cy='56' r='4' fill='%2378350f'/><circle cx='76' cy='44' r='8' fill='%2378350f'/><circle cx='76' cy='44' r='4' fill='%23451a03'/></svg>";
+    const COTTON_LEAF_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><rect width='120' height='120' rx='16' fill='%230f172a'/><path d='M60 20 C78 30, 92 50, 84 75 C74 95, 46 95, 36 75 C28 50, 42 30, 60 20 Z' fill='%23047857'/><path d='M60 26 L60 95 M60 55 L80 42 M60 55 L40 42 M60 70 L75 64 M60 70 L45 64' stroke='%236ee7b7' stroke-width='2' stroke-linecap='round'/><circle cx='50' cy='48' r='3' fill='%2310b981'/><circle cx='70' cy='60' r='3.5' fill='%2310b981'/></svg>";
+    const GENERIC_LEAF_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><rect width='120' height='120' rx='16' fill='%230f172a'/><path d='M30 90 C30 50, 55 25, 90 20 C85 60, 65 85, 30 90 Z' fill='%2310b981'/><path d='M35 85 C55 60, 70 45, 88 23' stroke='%23a7f3d0' stroke-width='2' fill='none'/></svg>";
+
+    function getDefaultSampleHistory() {
+      return [
+        {
+          id: "rec_wheat_sample_1",
+          cropName: "Wheat (Triticum aestivum)",
+          issueName: "Yellow / Stripe Rust (Puccinia striiformis)",
+          severity: "Severe",
+          urgency: "Urgent: Spray within 24-48 hours",
+          timestamp: "10 Sep 2026 • 08:30 AM",
+          thumbnail: WHEAT_RUST_SVG,
+          language: "English",
+          report: {
+            cropName: "Wheat (Triticum aestivum)",
+            issueName: "Yellow / Stripe Rust (Puccinia striiformis)",
+            severity: "Severe",
+            urgency: "Urgent: Spray within 24-48 hours to prevent grain shriveling",
+            symptoms: [
+              "Bright yellow-to-orange uredinial pustules arranged in distinct linear stripes along leaf veins",
+              "Premature drying and yellowing of the flag leaf, severely impacting photosynthesis during grain fill",
+              "Chlorotic yellow halos surrounding older fungal lesions with brown necrosis"
+            ],
+            immediateActions: [
+              "Quarantine the infected field quadrant and avoid mechanical operations through wet foliage to minimize spore dispersal",
+              "Halt excess nitrogen fertilizer top-dressing which fosters lush, rust-susceptible vegetative tissue",
+              "Begin targeted systemic fungicide foliar spray in calm weather (morning or late afternoon)"
+            ],
+            chemicalSolutions: [
+              "Propiconazole 25% EC (e.g., Tilt) @ 1.0 ml per liter of water (200 ml in 200 L water per acre)",
+              "Tebuconazole 25.9% EC (e.g., Folicur) @ 1.0 to 1.25 ml per liter of water",
+              "Azoxystrobin 18.2% + Difenoconazole 11.4% SC (e.g., Amistar Top) @ 1.0 ml/L for dual curative and protective action"
+            ],
+            pestInfestations: [
+              "Aphids (Rhopalosiphum padi): Inspect for secondary aphid colonies on flag leaves; if present above 10 aphids/tiller, tank-mix with Thiamethoxam 25% WG @ 0.2g/L"
+            ],
+            treatment: [
+              "Ensure uniform coverage on both sides of foliage using a hollow cone or flat fan nozzle at 30-40 PSI",
+              "Repeat foliar spray after 12–15 days if cool, humid weather (10–18°C) persists and rust spots re-emerge",
+              "Maintain adequate soil moisture with light irrigation, avoiding sprinkler water droplets on flag leaves"
+            ],
+            prevention: [
+              "Sow certified rust-resistant wheat varieties (e.g., HD 3086, DBW 187, DBW 222, PBW 725)",
+              "Practice balanced NPK fertilization (avoid N:K imbalance; apply potash to strengthen cell walls)",
+              "Destroy collateral weed grass hosts (Phalaris minor, Aegilops) on field bunds that harbor fungal spores"
+            ]
+          }
+        },
+        {
+          id: "rec_tomato_sample_2",
+          cropName: "Tomato (Solanum lycopersicum)",
+          issueName: "Early Blight (Alternaria solani)",
+          severity: "Moderate",
+          urgency: "Apply protective spray within 3–4 days",
+          timestamp: "08 Sep 2026 • 04:15 PM",
+          thumbnail: TOMATO_BLIGHT_SVG,
+          language: "English",
+          report: {
+            cropName: "Tomato (Solanum lycopersicum)",
+            issueName: "Early Blight (Alternaria solani)",
+            severity: "Moderate",
+            urgency: "Action required within 3-4 days to preserve lower canopy",
+            symptoms: [
+              "Concentric dark brown rings with characteristic 'target board' pattern on older lower leaves",
+              "Yellow chlorotic tissue surrounding the circular leaf lesions",
+              "Gradual defoliation starting from the bottom of the plant moving upward"
+            ],
+            immediateActions: [
+              "Prune and safely burn or bury heavily infected lower leaves below the first fruiting cluster",
+              "Avoid overhead sprinkler irrigation; switch strictly to ground furrow or drip irrigation to keep canopy dry",
+              "Disinfect pruning shears with 70% alcohol or 1% sodium hypochlorite between rows"
+            ],
+            chemicalSolutions: [
+              "Mancozeb 75% WP (e.g., Dithane M-45) @ 2.0 to 2.5 grams per liter of water as contact protector",
+              "Chlorothalonil 75% WP (e.g., Kavach) @ 2.0 g/L for broad-spectrum prophylactic barrier",
+              "Difenoconazole 25% EC (e.g., Score) @ 0.5 to 1.0 ml/L for curative systemic arrest of fungal spread"
+            ],
+            pestInfestations: [
+              "Whiteflies (Bemisia tabaci): Check undersides of leaves; spray Neem seed kernel extract (NSKE 5%) or Acetamiprid 20% SP @ 0.3g/L if seen"
+            ],
+            treatment: [
+              "Apply protective foliar spray early in the morning when wind speeds are below 8 km/h",
+              "Ensure thorough spray penetration into inner canopy foliage and leaf undersides",
+              "Follow up with second application after 7–10 days during rainy or dewy weather periods"
+            ],
+            prevention: [
+              "Maintain minimum 60cm plant spacing to ensure generous air circulation across the bed",
+              "Apply organic straw or silver-black plastic mulch to prevent soil splashing onto lower foliage",
+              "Rotate crops with non-solanaceous crops (maize, beans, or marigolds) for at least 2 seasons"
+            ]
+          }
+        },
+        {
+          id: "rec_cotton_sample_3",
+          cropName: "Cotton (Gossypium hirsutum)",
+          issueName: "Bacterial Blight / Angular Leaf Spot",
+          severity: "Low",
+          urgency: "Routine field monitoring; preventive bactericide",
+          timestamp: "05 Sep 2026 • 11:00 AM",
+          thumbnail: COTTON_LEAF_SVG,
+          language: "English",
+          report: {
+            cropName: "Cotton (Gossypium hirsutum)",
+            issueName: "Bacterial Blight / Angular Leaf Spot (Xanthomonas citri pv. malvacearum)",
+            severity: "Low",
+            urgency: "Routine monitoring: Spray preventive bactericide before monsoon spell",
+            symptoms: [
+              "Small, angular water-soaked lesions bounded by smaller leaf veinlets",
+              "Lesions turning reddish-brown to dark brown on older leaves without severe wilting",
+              "Normal flowering and squaring observed without boll rot"
+            ],
+            immediateActions: [
+              "Avoid working in field rows when foliage is wet with morning dew to stop bacterial transmission",
+              "Clear field drainage channels to prevent stagnant waterlogging around roots"
+            ],
+            chemicalSolutions: [
+              "Copper Oxychloride 50% WP (e.g., Blitox) @ 2.5 to 3.0 g/L combined with Streptocycline @ 1.0 g per 10 Liters of water",
+              "Kasugamycin 3% SL @ 1.5 to 2.0 ml/L as an alternative systemic bactericide"
+            ],
+            pestInfestations: [
+              "Jassids / Leafhoppers (Amrasca biguttula): Minor yellow margin curling; apply Flonicamid 50% WG @ 0.3g/L if threshold exceeds 2 nymphs/leaf"
+            ],
+            treatment: [
+              "Spray during sunny hours after morning dew evaporates to ensure bactericide adherence",
+              "Inspect squares and small bolls weekly for black arm symptoms"
+            ],
+            prevention: [
+              "Treat seeds with hot water (56°C for 10 min) or acid delinting before next sowing season",
+              "Avoid excessive synthetic urea application; use balanced potassium fertilization"
+            ]
+          }
+        }
+      ];
+    }
+
+    function createThumbnail(dataUri, maxWidth = 160, maxHeight = 160) {
+      return new Promise((resolve) => {
+        if (!dataUri) return resolve(GENERIC_LEAF_SVG);
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            let width = img.width || 160;
+            let height = img.height || 160;
+            if (width > height) {
+              if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxHeight) {
+                width = Math.round((width * maxHeight) / height);
+                height = maxHeight;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.75));
+          } catch (e) {
+            resolve(dataUri);
+          }
+        };
+        img.onerror = () => resolve(GENERIC_LEAF_SVG);
+        img.src = dataUri;
+      });
+    }
+
+    function getHistory() {
+      try {
+        const stored = localStorage.getItem(HISTORY_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {
+        console.warn("History storage read error:", e);
+      }
+      const initial = getDefaultSampleHistory();
+      try {
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(initial));
+      } catch (e) {}
+      return initial;
+    }
+
+    async function saveHistoryRecord(report, imgBase64, mimeType, lang) {
+      try {
+        let history = getHistory();
+        const now = new Date();
+        const formattedDate = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' • ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        let thumb = GENERIC_LEAF_SVG;
+        if (imgBase64) {
+          const fullDataUri = `data:${mimeType || 'image/jpeg'};base64,${imgBase64}`;
+          thumb = await createThumbnail(fullDataUri, 160, 160);
+        }
+
+        const newRecord = {
+          id: 'scan_' + Date.now(),
+          cropName: report.cropName || 'Field Crop',
+          issueName: report.issueName || 'Agronomic Check',
+          severity: report.severity || 'Moderate',
+          urgency: report.urgency || 'Routine Field Monitoring',
+          timestamp: formattedDate,
+          thumbnail: thumb,
+          language: lang || 'English',
+          report: report
+        };
+
+        history.unshift(newRecord);
+        if (history.length > 25) {
+          history = history.slice(0, 25);
+        }
+
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+        renderHistoryView();
+      } catch (err) {
+        console.warn("Failed to persist history record:", err);
+      }
+    }
+
+    function renderHistoryView() {
+      const history = getHistory();
+      const listEl = document.getElementById('historyList');
+      const emptyEl = document.getElementById('historyEmpty');
+      const countBadge = document.getElementById('historyCountBadge');
+
+      const totalScans = history.length;
+      if (countBadge) {
+        countBadge.textContent = `${totalScans} ${totalScans === 1 ? 'record' : 'records'}`;
+      }
+      if (navHistoryBadge) {
+        navHistoryBadge.textContent = totalScans;
+      }
+
+      if (!listEl || !emptyEl) return;
+
+      if (totalScans === 0) {
+        listEl.innerHTML = '';
+        listEl.classList.add('hidden');
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+
+      emptyEl.classList.add('hidden');
+      listEl.classList.remove('hidden');
+      listEl.innerHTML = '';
+
+      history.forEach(item => {
+        const card = document.createElement('div');
+        card.className = "p-3.5 sm:p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 hover:border-emerald-500/40 hover:bg-slate-950 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 shadow-sm";
+
+        const sev = (item.severity || item.report?.severity || 'Moderate').toLowerCase();
+        let badgeStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
+        if (sev.includes('severe') || sev.includes('high') || sev.includes('गंभीर') || sev.includes('तीव्र')) {
+          badgeStyle = "bg-rose-500/10 text-rose-400 border-rose-500/30";
+        } else if (sev.includes('mod') || sev.includes('medium') || sev.includes('मध्यम')) {
+          badgeStyle = "bg-amber-500/10 text-amber-400 border-amber-500/30";
+        }
+
+        const thumbSrc = item.thumbnail || GENERIC_LEAF_SVG;
+        const cropTitle = item.cropName || 'Field Crop';
+        const issueTitle = item.issueName || 'Agronomic Check';
+
+        card.innerHTML = `
+          <div class="flex items-center gap-3.5 flex-1 min-w-0">
+            <img src="${thumbSrc}" class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover border border-slate-800 shrink-0 bg-slate-900 shadow-inner" alt="${cropTitle}">
+            <div class="space-y-1 min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 truncate max-w-[180px]">${cropTitle}</span>
+                <span class="text-[11px] text-slate-500">${item.timestamp || ''}</span>
+              </div>
+              <h4 class="text-xs sm:text-sm font-bold text-slate-200 truncate">${issueTitle}</h4>
+              <div class="pt-0.5">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${badgeStyle}">${item.severity || 'Moderate'}</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
+            <button onclick="loadHistoryRecord('${item.id}')" class="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-1.5 transition">
+              <span>View Report</span>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+            <button onclick="deleteHistoryRecord('${item.id}', event)" title="Delete record" class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </div>
+        `;
+        listEl.appendChild(card);
+      });
+    }
+
+    function loadHistoryRecord(id) {
+      const history = getHistory();
+      const record = history.find(item => item.id === id);
+      if (!record || !record.report) return;
+
+      currentReport = record.report;
+      lastViewBeforeReport = 'history';
+
+      const heroImg = document.getElementById('resHeroImg');
+      if (record.thumbnail) {
+        heroImg.src = record.thumbnail;
+        heroImg.classList.remove('hidden');
+      } else {
+        heroImg.classList.add('hidden');
+      }
+
+      renderDashboard(record.report);
+
+      if (reportBackBtn) {
+        reportBackBtn.innerHTML = `
+          <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+          <span>Back to History</span>
+        `;
+      }
+
+      // Switch to diagnose container to view the dashboard
+      switchMainTab('diagnose');
+      inputCard.classList.add('hidden');
+      loadingState.classList.add('hidden');
+      dashboard.classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function deleteHistoryRecord(id, event) {
+      if (event) event.stopPropagation();
+      let history = getHistory();
+      history = history.filter(item => item.id !== id);
+      try {
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+      } catch (e) {}
+      renderHistoryView();
+    }
+
+    function clearHistoryLog() {
+      if (!confirm("Are you sure you want to clear your scan history?")) return;
+      try {
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify([]));
+      } catch (e) {}
+      renderHistoryView();
+    }
+
+    function restoreSampleHistory() {
+      const samples = getDefaultSampleHistory();
+      try {
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(samples));
+      } catch (e) {}
+      renderHistoryView();
+    }
+
+    // =========================================================================
+    // INITIALIZATION ON LOAD
+    // =========================================================================
+    updateApiKeyStatus();
+
+    // Restore saved language selection
+    const savedLang = localStorage.getItem('agrishield_language');
+    if (savedLang && document.getElementById('languageSelect')) {
+      document.getElementById('languageSelect').value = savedLang;
+    }
+    document.getElementById('languageSelect')?.addEventListener('change', (e) => {
+      localStorage.setItem('agrishield_language', e.target.value);
+    });
+
+    // Populate initial history count & badge
+    renderHistoryView();
+
+    // Set default active tab
+    switchMainTab('diagnose');
+  </script>
+</body>
+</html>
