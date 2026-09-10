@@ -913,16 +913,15 @@
               if (match) waitSeconds = parseFloat(match[1]);
               startCooldown(waitSeconds);
               throw new Error(`Rate limit reached. Auto-retry enabled in ${Math.ceil(waitSeconds)}s.`);
-            } else if (proxyRes.status !== 404) {
+            } else if (proxyRes.status === 404) {
+              throw new Error("Backend function not found (/api/analyze returned 404). The 'api' folder (api/analyze.js) is missing from your GitHub repository. Please add the 'api' folder to GitHub and redeploy on Vercel.");
+            } else {
               const errData = await proxyRes.json().catch(() => ({}));
               throw new Error(errData.error?.message || `Server Proxy Error (Status ${proxyRes.status})`);
             }
           } catch (proxyErr) {
-            // Rethrow explicit rate limit or server errors
-            if (proxyErr.message && (proxyErr.message.includes('Rate limit') || proxyErr.message.includes('Server Proxy') || proxyErr.message.includes('GEMINI_API_KEY'))) {
-              throw proxyErr;
-            }
-            // If 404 or connection error (e.g. running static without backend), fall through to direct call
+            // Rethrow explicit errors from the server or 404
+            throw proxyErr;
           }
         }
 
