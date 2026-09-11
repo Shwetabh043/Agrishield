@@ -742,14 +742,56 @@
         return;
       }
 
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = cameraVideo.videoWidth;
-        canvas.height = cameraVideo.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
+    function compressImage(sourceUrlOrFile, maxDimension = 1024, quality = 0.85) {
+      return new Promise((resolve) => {
+        const processImg = (img) => {
+          let width = img.naturalWidth || img.videoWidth || img.width;
+          let height = img.naturalHeight || img.videoHeight || img.height;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
 
-        const dataUri = canvas.toDataURL('image/jpeg', 0.92);
+        if (sourceUrlOrFile instanceof HTMLVideoElement) {
+          processImg(sourceUrlOrFile);
+        } else if (typeof sourceUrlOrFile === 'string') {
+          const img = new Image();
+          img.onload = () => processImg(img);
+          img.onerror = () => resolve(sourceUrlOrFile);
+          img.src = sourceUrlOrFile;
+        } else {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => processImg(img);
+            img.onerror = () => resolve(e.target.result);
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(sourceUrlOrFile);
+        }
+      });
+    }
+
+    async function snapPhotoFromCamera() {
+      if (!cameraVideo || !cameraVideo.videoWidth) {
+        alert("Camera stream is not ready. Please make sure camera is permitted and running.");
+        return;
+      }
+
+      try {
+        const dataUri = await compressImage(cameraVideo, 1024, 0.85);
         imageMimeType = "image/jpeg";
         imageBase64 = dataUri.split(',')[1];
 
@@ -780,18 +822,26 @@
       switchToUploadMode();
     }
 
-    function handleImage(file) {
+    async function handleImage(file) {
       if (!file || !file.type.startsWith('image/')) {
         alert('Please select an image file (JPG, PNG, WEBP).');
         return;
       }
-      imageMimeType = file.type || 'image/jpeg';
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        imageBase64 = e.target.result.split(',')[1];
-        displaySelectedPhoto(e.target.result);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const dataUri = await compressImage(file, 1024, 0.85);
+        imageMimeType = 'image/jpeg';
+        imageBase64 = dataUri.split(',')[1];
+        displaySelectedPhoto(dataUri);
+      } catch (e) {
+        console.warn("Compression fallback:", e);
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          imageMimeType = file.type || 'image/jpeg';
+          imageBase64 = ev.target.result.split(',')[1];
+          displaySelectedPhoto(ev.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
     }
 
     // Event Listeners for File Inputs & Drag-and-Drop
@@ -937,6 +987,9 @@
           const systemPrompt = `You are an expert practical agricultural field extension officer providing guidance directly to a farmer.
 Examine the plant/crop photo carefully.
 
+CRITICAL PERFORMANCE & CONCISENESS REQUIREMENT:
+Provide direct, concise, and high-impact field guidance. Keep each item brief (1-2 clear sentences per point, maximum 2-3 bullet items per section) so the diagnosis generates rapidly without long delays.
+
 CRITICAL LANGUAGE REQUIREMENT:
 You MUST generate the entire report and all diagnosis content strictly in ${selectedLanguage}.
 If ${selectedLanguage} is an Indian language (e.g. Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Punjabi, Odia, Assamese, Urdu), write all explanations, symptoms, immediate field steps, pest measures, chemical solutions with practical dosages (ml or grams per liter), treatments, and prevention tips in ${selectedLanguage} using everyday vocabulary that local farmers easily understand.
@@ -971,7 +1024,9 @@ Structure response in valid JSON matching this exact layout:
                 ]
               }],
               generationConfig: {
-                response_mime_type: "application/json"
+                response_mime_type: "application/json",
+                temperature: 0.2,
+                max_output_tokens: 1024
               }
             })
           });

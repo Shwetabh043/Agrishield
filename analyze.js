@@ -52,6 +52,9 @@ module.exports = async (req, res) => {
     const systemPrompt = `You are an expert practical agricultural field extension officer providing guidance directly to a farmer.
 Examine the plant/crop photo carefully.
 
+CRITICAL PERFORMANCE & CONCISENESS REQUIREMENT:
+Provide direct, concise, and high-impact field guidance. Keep each item brief (1-2 clear sentences per point, maximum 2-3 bullet items per section) so the diagnosis generates rapidly without long delays.
+
 CRITICAL LANGUAGE REQUIREMENT:
 You MUST generate the entire report and all diagnosis content strictly in ${selectedLanguage}.
 If ${selectedLanguage} is an Indian language (e.g. Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Punjabi, Odia, Assamese, Urdu), write all explanations, symptoms, immediate field steps, pest measures, chemical solutions with practical dosages (ml or grams per liter), treatments, and prevention tips in ${selectedLanguage} using everyday vocabulary that local farmers easily understand.
@@ -86,7 +89,9 @@ Structure response in valid JSON matching this exact layout:
           ]
         }],
         generationConfig: {
-          response_mime_type: 'application/json'
+          response_mime_type: 'application/json',
+          temperature: 0.2,
+          max_output_tokens: 1024
         }
       })
     });
