@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: { message: 'Method Not Allowed. Use POST.' } });
   }
 
-  // Get API key from Vercel environment variable, with optional custom header fallback
+  // Get API key strictly from Vercel environment variable (never hardcoded in file)
   const apiKey = (process.env.GEMINI_API_KEY || req.headers['x-gemini-key'] || '').trim();
 
   if (!apiKey) {
@@ -76,8 +76,7 @@ Structure response in valid JSON matching this exact layout:
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         contents: [{
