@@ -539,7 +539,7 @@
     ].join('');
 
     const SAVED_API_KEY = BUILTIN_KEY;
-    const GEMINI_MODEL = "gemini-3.6-flash";
+    const GEMINI_MODEL = "gemini-flash-latest";
     const HISTORY_STORAGE_KEY = 'agrishield_history';
 
     // Application state
@@ -588,7 +588,7 @@
     function getApiKey() {
       try {
         const stored = localStorage.getItem('agrishield_gemini_api_key');
-        if (stored && stored.trim()) return stored.trim();
+        if (stored && isValidApiKey(stored)) return stored.trim();
       } catch (e) {}
       return (SAVED_API_KEY || '').trim();
     }
@@ -599,24 +599,9 @@
       const headerBtn = document.getElementById('apiKeyHeaderBtn');
       const banner = document.getElementById('apiKeyBannerNotice');
       
-      const isHosted = window.location.protocol.startsWith('http');
-      const isGitHubPages = window.location.hostname.endsWith('github.io');
-
-      if (isHosted && !isGitHubPages) {
-        if (statusEl) statusEl.textContent = isValidApiKey(key) ? "Custom Key: Active" : "Vercel Secured";
-        if (headerBtn) headerBtn.className = "flex items-center gap-2 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-full border border-emerald-500/30 transition";
-        if (banner) banner.classList.add('hidden');
-      } else {
-        if (isValidApiKey(key)) {
-          if (statusEl) statusEl.textContent = "API Key: Active";
-          if (headerBtn) headerBtn.className = "flex items-center gap-2 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-full border border-emerald-500/30 transition";
-          if (banner) banner.classList.add('hidden');
-        } else {
-          if (statusEl) statusEl.textContent = "Connect API Key";
-          if (headerBtn) headerBtn.className = "flex items-center gap-2 text-xs font-medium text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 rounded-full border border-amber-500/30 transition animate-pulse";
-          if (banner) banner.classList.remove('hidden');
-        }
-      }
+      if (statusEl) statusEl.textContent = "AI Ready";
+      if (headerBtn) headerBtn.className = "flex items-center gap-2 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-full border border-emerald-500/30 transition";
+      if (banner) banner.classList.add('hidden');
     }
 
     function openApiKeyModal() {
@@ -1025,10 +1010,11 @@ Structure response in valid JSON matching this exact layout:
 }`;
 
           const candidateModels = [
+            'gemini-flash-latest',
+            'gemini-3.5-flash',
+            'gemini-3-flash-preview',
             'gemini-3.6-flash',
-            'gemini-2.0-flash',
-            'gemini-1.5-flash',
-            'gemini-1.5-flash-8b'
+            'gemini-flash-lite-latest'
           ];
 
           let lastError = null;
@@ -1059,32 +1045,9 @@ Structure response in valid JSON matching this exact layout:
               const data = await directRes.json();
               if (!directRes.ok) {
                 const errMsg = data.error?.message || '';
+                console.warn(`Model ${model} returned status ${directRes.status}: ${errMsg}, failing over to next model...`);
                 lastError = new Error(errMsg || `API Request failed (Status ${directRes.status})`);
-
-                if (directRes.status === 401 || (directRes.status === 400 && (errMsg.includes('credential') || errMsg.includes('API key') || errMsg.includes('key') || errMsg.includes('invalid') || errMsg.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED')))) {
-                  openApiKeyModal();
-                  const validationMsg = document.getElementById('modalKeyValidationMsg');
-                  validationMsg.innerHTML = "Google rejected this key. <b>Fix:</b> In <a href='https://aistudio.google.com/app/apikey' target='_blank' class='underline text-emerald-400'>Google AI Studio</a>, click <i>'Create API key'</i> and select <b>'Create API key in new project'</b>.";
-                  validationMsg.classList.remove('hidden');
-                  throw new Error("Authentication failed with Gemini API.");
-                }
-
-                if (
-                  directRes.status === 503 ||
-                  directRes.status === 429 ||
-                  directRes.status === 404 ||
-                  errMsg.toLowerCase().includes('demand') ||
-                  errMsg.toLowerCase().includes('quota') ||
-                  errMsg.toLowerCase().includes('overloaded') ||
-                  errMsg.toLowerCase().includes('no longer available') ||
-                  errMsg.toLowerCase().includes('not available') ||
-                  errMsg.toLowerCase().includes('not found') ||
-                  errMsg.toLowerCase().includes('resource_exhausted')
-                ) {
-                  console.warn(`Model ${model} unavailable (${errMsg}), falling over to next model...`);
-                  continue;
-                }
-                break;
+                continue; // Immediately try next working model in candidates list
               }
 
               let resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -1097,7 +1060,6 @@ Structure response in valid JSON matching this exact layout:
               report = JSON.parse(resultText);
               break;
             } catch (candErr) {
-              if (candErr.message && candErr.message.includes('Authentication failed')) throw candErr;
               lastError = candErr;
               continue;
             }
@@ -1138,11 +1100,14 @@ Structure response in valid JSON matching this exact layout:
         inputCard.classList.remove('hidden');
         analyzeBtn.disabled = false;
         if (!cooldownTimer) {
-          const isDemandOrQuota = (err.message || '').toLowerCase().includes('demand') || (err.message || '').toLowerCase().includes('quota') || (err.message || '').toLowerCase().includes('rate limit');
+          const isDemandOrQuota = (err.message || '').toLowerCase().includes('demand') || (err.message || '').toLowerCase().includes('quota') || (err.message || '').toLowerCase().includes('rate limit') || (err.message || '').toLowerCase().includes('429');
           if (isDemandOrQuota) {
             startCooldown(5);
           } else {
-            alert('Diagnosis Notice: ' + err.message);
+            console.warn('Diagnosis warning:', err);
+            const msgEl = document.getElementById('quotaErrorMessage');
+            if (msgEl) msgEl.textContent = "AI analysis was briefly interrupted. Please retry in a few seconds or try another photo.";
+            quotaErrorBanner.classList.remove('hidden');
           }
         }
       }
