@@ -592,8 +592,9 @@
       const banner = document.getElementById('apiKeyBannerNotice');
       
       const isHosted = window.location.protocol.startsWith('http');
+      const isGitHubPages = window.location.hostname.endsWith('github.io');
 
-      if (isHosted) {
+      if (isHosted && !isGitHubPages) {
         if (statusEl) statusEl.textContent = isValidApiKey(key) ? "Custom Key: Active" : "Vercel Secured";
         if (headerBtn) headerBtn.className = "flex items-center gap-2 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-full border border-emerald-500/30 transition";
         if (banner) banner.classList.add('hidden');
@@ -936,7 +937,9 @@
         let report = null;
 
         // 1. First priority: Vercel Backend Proxy (/api/analyze) when hosted over HTTP/HTTPS
-        if (window.location.protocol.startsWith('http')) {
+        const isGitHubPages = window.location.hostname.endsWith('github.io');
+
+        if (window.location.protocol.startsWith('http') && !isGitHubPages) {
           try {
             const reqHeaders = { 'Content-Type': 'application/json' };
             if (customApiKey) reqHeaders['x-gemini-key'] = customApiKey;
@@ -960,26 +963,32 @@
               if (match) waitSeconds = parseFloat(match[1]);
               startCooldown(waitSeconds);
               throw new Error(`Rate limit reached. Auto-retry enabled in ${Math.ceil(waitSeconds)}s.`);
-            } else if (proxyRes.status === 404) {
-              throw new Error("Backend function not found (/api/analyze returned 404). The 'api' folder (api/analyze.js) is missing from your GitHub repository. Please add the 'api' folder to GitHub and redeploy on Vercel.");
+            } else if (proxyRes.status === 404 || proxyRes.status === 405) {
+              console.warn(`Serverless proxy returned status ${proxyRes.status}. Falling through to direct API call...`);
             } else {
               const errData = await proxyRes.json().catch(() => ({}));
               throw new Error(errData.error?.message || `Server Proxy Error (Status ${proxyRes.status})`);
             }
           } catch (proxyErr) {
-            // Rethrow explicit errors from the server or 404
-            throw proxyErr;
+            if (proxyErr.message && (proxyErr.message.includes('Rate limit') || proxyErr.message.includes('Server Proxy Error'))) {
+              throw proxyErr;
+            }
           }
         }
 
-        // 2. Direct client fallback for local offline file:// or unhosted environments
+        // 2. Direct client fallback for GitHub Pages, local offline file://, or unhosted environments
         if (!report) {
           if (!isValidApiKey(customApiKey)) {
             openApiKeyModal();
             const validationMsg = document.getElementById('modalKeyValidationMsg');
-            validationMsg.textContent = "To diagnose crops locally, enter your Gemini API key (or deploy to Vercel).";
+            validationMsg.textContent = isGitHubPages
+              ? "To diagnose crops on GitHub Pages, connect your free Gemini API key."
+              : "To diagnose crops locally, enter your Gemini API key (or deploy to Vercel).";
             validationMsg.classList.remove('hidden');
-            throw new Error("No Gemini API key configured. On Vercel, set GEMINI_API_KEY in Project Settings; locally, connect your key in the modal.");
+            throw new Error(isGitHubPages
+              ? "Please connect your free Gemini API key in the popup modal to run diagnoses on GitHub Pages."
+              : "No Gemini API key configured. On Vercel, set GEMINI_API_KEY in Project Settings; locally, connect your key in the modal."
+            );
           }
 
           const systemPrompt = `You are an expert practical agricultural field extension officer providing guidance directly to a farmer.
