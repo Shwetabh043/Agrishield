@@ -47,7 +47,6 @@ module.exports = async (req, res) => {
     }
 
     const selectedLanguage = language || 'English';
-    const GEMINI_MODEL = 'gemini-3.6-flash';
 
     const systemPrompt = `You are an expert practical agricultural field extension officer providing guidance directly to a farmer.
 Examine the plant/crop photo carefully.
@@ -74,41 +73,89 @@ Structure response in valid JSON matching this exact layout:
   "prevention": ["Prevention tip 1 in ${selectedLanguage}", "Prevention tip 2 in ${selectedLanguage}"]
 }`;
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    // Resilient Candidate Models Chain: if one model experiences high demand (503) or rate limits (429),
+    // the system automatically transparently tries the next high-speed model.
+    const candidateModels = [
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-8b',
+      'gemini-3.6-flash'
+    ];
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: systemPrompt },
-            { inline_data: { mime_type: imageMimeType || 'image/jpeg', data: imageBase64 } }
-          ]
-        }],
-        generationConfig: {
-          response_mime_type: 'application/json',
-          temperature: 0.2,
-          max_output_tokens: 1024
+    let lastError = null;
+    let report = null;
+
+    for (const model of candidateModels) {
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: systemPrompt },
+                { inline_data: { mime_type: imageMimeType || 'image/jpeg', data: imageBase64 } }
+              ]
+            }],
+            generationConfig: {
+              response_mime_type: 'application/json',
+              temperature: 0.2,
+              max_output_tokens: 1024
+            }
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          const errMsg = data.error?.message || '';
+          console.warn(`Gemini model ${model} failed with status ${response.status}: ${errMsg}`);
+          lastError = { status: response.status, data };
+
+          // If high demand (503), rate limit (429), or temporary server error (500/504), fail over to next model
+          if (
+            response.status === 503 ||
+            response.status === 429 ||
+            response.status >= 500 ||
+            errMsg.toLowerCase().includes('demand') ||
+            errMsg.toLowerCase().includes('quota') ||
+            errMsg.toLowerCase().includes('overloaded') ||
+            errMsg.toLowerCase().includes('resource_exhausted')
+          ) {
+            continue; // Try next model in candidate list
+          }
+
+          // Non-retriable client error (e.g. 400 bad key), break immediately
+          break;
         }
-      })
-    });
 
-    const data = await response.json();
+        let resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!resultText) {
+          lastError = { status: 502, data: { error: { message: `No diagnosis text returned by model ${model}.` } } };
+          continue;
+        }
 
-    if (!response.ok) {
-      return res.status(response.status).json(data);
+        resultText = resultText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+        report = JSON.parse(resultText);
+        break; // Successfully obtained diagnosis!
+
+      } catch (loopErr) {
+        console.warn(`Exception calling model ${model}:`, loopErr);
+        lastError = { status: 500, data: { error: { message: loopErr.message } } };
+        continue;
+      }
     }
 
-    let resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!resultText) {
-      return res.status(502).json({ error: { message: 'No diagnosis text returned by Gemini API.' } });
+    if (!report) {
+      return res.status(lastError?.status || 500).json(lastError?.data || {
+        error: { message: 'All diagnosis models are temporarily experiencing high demand. Please try again in a few moments.' }
+      });
     }
-
-    resultText = resultText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
-    const report = JSON.parse(resultText);
 
     return res.status(200).json(report);
 
